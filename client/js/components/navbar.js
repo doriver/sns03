@@ -29,6 +29,7 @@ export function renderNavbar() {
                 ${avatarHtml(user.profileImage, 'avatar-sm')}${escHtml(user.nickname)}
               </button>
               <div class="nav-dropdown-menu" id="nav-dropdown">
+                <button class="nav-dropdown-item" id="btn-settings">설정</button>
                 <button class="nav-dropdown-item danger" id="btn-logout">로그아웃</button>
               </div>
             </div>
@@ -57,6 +58,11 @@ export function renderNavbar() {
       }
     };
     document.addEventListener('click', closeHandler);
+
+    navbar.querySelector('#btn-settings')?.addEventListener('click', () => {
+      dropdown.classList.remove('open');
+      navigate('/settings');
+    });
 
     navbar.querySelector('#btn-logout')?.addEventListener('click', async () => {
       dropdown.classList.remove('open');

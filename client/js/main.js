@@ -9,7 +9,7 @@ import { postListPage } from './pages/postList.js';
 import { postDetailPage } from './pages/postDetail.js';
 import { postEditorPage } from './pages/postEditor.js';
 import { profilePage } from './pages/profile.js';
-import { mePage } from './pages/me.js';
+import { settingsPage } from './pages/settings.js';
 import { adminPage } from './pages/admin.js';
 
 async function restoreSession() {
@@ -40,7 +40,7 @@ route('/posts/new', (r) => postEditorPage(r, {}), { auth: true });
 route('/posts/:id/edit', postEditorPage, { auth: true });
 route('/posts/:id', postDetailPage);
 route('/users/:id', profilePage);
-route('/me', mePage, { auth: true });
+route('/settings', settingsPage, { auth: true });
 route('/admin', adminPage, { auth: true, admin: true });
 route('/admin/:tab', adminPage, { auth: true, admin: true });
 
