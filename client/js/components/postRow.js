@@ -6,11 +6,12 @@ export function postRow(post) {
   el.className = 'post-row';
   const authorName = post.author?.nickname || '탈퇴한 사용자';
   el.innerHTML = `
+    <div class="post-row-author">
+      ${avatarHtml(post.author?.profileImage, 'avatar-sm')}
+      <span class="post-row-author-name">${escHtml(authorName)}</span>
+    </div>
     <div class="post-row-title">${escHtml(post.title)}</div>
     <div class="post-row-meta">
-      ${avatarHtml(post.author?.profileImage, 'avatar-sm')}
-      <span>${escHtml(authorName)}</span>
-      <span>·</span>
       <span>👁 ${post.viewCount}</span>
       <span>❤ ${post.likeCount}</span>
       <span>💬 ${post.commentCount}</span>
