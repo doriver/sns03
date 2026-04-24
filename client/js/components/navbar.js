@@ -2,6 +2,7 @@ import { getState, subscribe } from '../store.js';
 import { logout } from '../api/auth.js';
 import { navigate } from '../router.js';
 import { showToast } from './toast.js';
+import { avatarHtml, escHtml } from './postCard.js';
 
 export function renderNavbar() {
   const render = (user) => {
@@ -14,7 +15,7 @@ export function renderNavbar() {
           <a href="/posts" data-link>게시판</a>
           ${user ? `
             <a href="/posts/new" data-link>글쓰기</a>
-            <a href="/me" data-link>${user.nickname}</a>
+            <a href="/me" data-link style="display:inline-flex;align-items:center;gap:.3rem">${avatarHtml(user.profileImage, 'avatar-sm')}${escHtml(user.nickname)}</a>
             ${isAdmin ? `<a href="/admin" data-link>관리자</a>` : ''}
             <button class="btn-outline btn-sm" id="btn-logout">로그아웃</button>
           ` : `

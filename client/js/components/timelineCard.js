@@ -1,5 +1,5 @@
 import { navigate } from '../router.js';
-import { escHtml, formatDate } from './postCard.js';
+import { escHtml, formatDate, avatarHtml } from './postCard.js';
 
 export function timelineCard(post) {
   const el = document.createElement('div');
@@ -38,6 +38,7 @@ export function timelineCard(post) {
 
   el.innerHTML = `
     <div class="timeline-card-header">
+      ${avatarHtml(post.author?.profileImage, 'avatar-sm')}
       <span class="timeline-card-author">${escHtml(authorName)}</span>${badge}
       <span class="timeline-card-time">${formatDate(post.createdAt)}</span>
     </div>

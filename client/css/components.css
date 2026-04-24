@@ -59,6 +59,7 @@
 
 /* Avatar */
 .avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; background: var(--color-border); }
+.avatar-sm { width: 24px; height: 24px; }
 .avatar-lg { width: 72px; height: 72px; }
 
 /* Loader */

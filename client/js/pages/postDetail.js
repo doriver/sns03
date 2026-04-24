@@ -6,7 +6,7 @@ import { showToast } from '../components/toast.js';
 import { showConfirm } from '../components/modal.js';
 import { navigate } from '../router.js';
 import { getState } from '../store.js';
-import { formatDate, escHtml } from '../components/postCard.js';
+import { formatDate, escHtml, avatarHtml } from '../components/postCard.js';
 
 export async function postDetailPage(root, { id }) {
   root.innerHTML = loader();
@@ -30,7 +30,7 @@ function renderPost(root, post, id) {
       <h1 style="font-size:1.3rem;font-weight:700;margin-bottom:.5rem">${escHtml(post.title)}</h1>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
         <div style="font-size:.8rem;color:var(--color-text-muted)">
-          <a href="/users/${post.author?.id}" data-link>${escHtml(post.author?.nickname || '탈퇴한 사용자')}</a>
+          <a href="/users/${post.author?.id}" data-link style="display:inline-flex;align-items:center;gap:.3rem">${avatarHtml(post.author?.profileImage, 'avatar-sm')}${escHtml(post.author?.nickname || '탈퇴한 사용자')}</a>
           · ${formatDate(post.createdAt)} · 👁 ${post.viewCount} · ❤ <span id="like-count">${post.likeCount}</span>
         </div>
         ${(isOwner || isAdmin) ? `
@@ -113,6 +113,7 @@ function renderComments(section, postId, res, loadMore) {
     const isAdmin = user?.role === 'admin';
     el.innerHTML = `
       <div class="comment-meta">
+        ${avatarHtml(c.author?.profileImage, 'avatar-sm')}
         <strong>${escHtml(c.author?.nickname || '탈퇴한 사용자')}</strong>
         <span>${formatDate(c.createdAt)}</span>
         ${(isOwner || isAdmin) ? `<button class="btn-danger btn-sm" data-del="${c.id}">삭제</button>` : ''}

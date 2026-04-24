@@ -1,5 +1,5 @@
 import { navigate } from '../router.js';
-import { escHtml, formatDate } from './postCard.js';
+import { escHtml, formatDate, avatarHtml } from './postCard.js';
 
 export function postRow(post) {
   const el = document.createElement('div');
@@ -8,6 +8,7 @@ export function postRow(post) {
   el.innerHTML = `
     <div class="post-row-title">${escHtml(post.title)}</div>
     <div class="post-row-meta">
+      ${avatarHtml(post.author?.profileImage, 'avatar-sm')}
       <span>${escHtml(authorName)}</span>
       <span>·</span>
       <span>👁 ${post.viewCount}</span>

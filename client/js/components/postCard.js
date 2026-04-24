@@ -1,5 +1,10 @@
 import { navigate } from '../router.js';
 
+export function avatarHtml(profileImage, cls = '') {
+  const src = profileImage ? escHtml(profileImage) : '/assets/default-avatar.svg';
+  return `<img class="avatar${cls ? ' ' + cls : ''}" src="${src}" alt="" loading="lazy">`;
+}
+
 export function postCard(post) {
   const el = document.createElement('div');
   el.className = 'card post-card';
@@ -7,6 +12,7 @@ export function postCard(post) {
   const badge = post.author?.role === 'popular' ? '<span class="badge badge-popular">popular</span>' : post.author?.role === 'admin' ? '<span class="badge badge-admin">admin</span>' : '';
   el.innerHTML = `
     <div class="post-card-meta">
+      ${avatarHtml(post.author?.profileImage, 'avatar-sm')}
       <span>${authorName}</span>${badge}
       <span>·</span>
       <span>${formatDate(post.createdAt)}</span>
