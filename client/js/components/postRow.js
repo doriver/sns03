@@ -1,7 +1,7 @@
 import { navigate } from '../router.js';
 import { escHtml, formatDate, avatarHtml } from './postCard.js';
 
-export function postRow(post) {
+export function postRow(post, page = 1) {
   const el = document.createElement('div');
   el.className = 'post-row';
   const authorName = post.author?.nickname || '탈퇴한 사용자';
@@ -18,6 +18,6 @@ export function postRow(post) {
       <span>·</span>
       <span>${formatDate(post.createdAt)}</span>
     </div>`;
-  el.addEventListener('click', () => navigate(`/posts/${post.id}`));
+  el.addEventListener('click', () => navigate(`/posts/${post.id}?page=${page}`));
   return el;
 }

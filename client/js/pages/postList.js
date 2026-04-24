@@ -59,7 +59,7 @@ export async function postListPage(root) {
       if (!result.items.length) {
         listEl.innerHTML = '<p style="padding:1.5rem;color:var(--color-text-muted);text-align:center">게시글이 없습니다.</p>';
       } else {
-        result.items.forEach((p) => listEl.appendChild(postRow(p)));
+        result.items.forEach((p) => listEl.appendChild(postRow(p, currentPage)));
       }
       renderPagination();
       root.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -70,5 +70,6 @@ export async function postListPage(root) {
     }
   }
 
-  loadPage(1);
+  const initialPage = parseInt(new URLSearchParams(location.search).get('page') || '1', 10);
+  loadPage(initialPage);
 }

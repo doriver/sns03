@@ -9,16 +9,17 @@ import { getState } from '../store.js';
 import { formatDate, escHtml, avatarHtml } from '../components/postCard.js';
 
 export async function postDetailPage(root, { id }) {
+  const listPage = new URLSearchParams(location.search).get('page') || '1';
   root.innerHTML = loader();
   try {
     const { post } = await getPost(id);
-    renderPost(root, post, id);
+    renderPost(root, post, id, listPage);
   } catch (e) {
     root.innerHTML = `<p style="color:var(--color-danger)">${escHtml(e.message)}</p>`;
   }
 }
 
-function renderPost(root, post, id) {
+function renderPost(root, post, id, listPage) {
   const user = getState('currentUser');
   const isOwner = user && post.author?.id === user.id;
   const isAdmin = user?.role === 'admin';
@@ -26,6 +27,9 @@ function renderPost(root, post, id) {
   const images = post.images?.map((url) => `<img src="${escHtml(url)}" alt="" style="max-width:100%;border-radius:8px;margin-top:.5rem">`).join('') || '';
 
   root.innerHTML = `
+    <div style="margin-bottom:.75rem">
+      <button class="btn-outline btn-sm" id="btn-back-list">← 목록으로</button>
+    </div>
     <div class="card">
       <h1 style="font-size:1.3rem;font-weight:700;margin-bottom:.5rem">${escHtml(post.title)}</h1>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
@@ -47,6 +51,7 @@ function renderPost(root, post, id) {
     </div>
     <div id="comments-section" style="margin-top:1.5rem"></div>`;
 
+  root.querySelector('#btn-back-list').addEventListener('click', () => navigate(`/posts?page=${listPage}`));
   root.querySelector('[data-link]')?.addEventListener('click', (e) => { e.preventDefault(); navigate(`/users/${post.author?.id}`); });
 
   root.querySelector('#btn-edit')?.addEventListener('click', () => navigate(`/posts/${id}/edit`));
