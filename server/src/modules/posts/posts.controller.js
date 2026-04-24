@@ -2,8 +2,13 @@ const { ok } = require('../../utils/response');
 const postsService = require('./posts.service');
 
 async function list(req, res) {
-  const { cursor, limit, authorId } = req.query;
-  const result = await postsService.listByCursor({ cursor, limit: limit ? parseInt(limit) : 20, authorId });
+  const { cursor, limit, authorId, page } = req.query;
+  const parsedLimit = limit || 20;
+  if (page) {
+    const result = await postsService.listByPage({ page, limit: parsedLimit, authorId });
+    return ok(res, result);
+  }
+  const result = await postsService.listByCursor({ cursor, limit: parsedLimit, authorId });
   return ok(res, result);
 }
 

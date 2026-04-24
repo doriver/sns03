@@ -119,4 +119,27 @@ function formatPost(post) {
   };
 }
 
-module.exports = { create, listByCursor, getById, update, softDelete };
+async function listByPage({ page = 1, limit = 20, authorId } = {}) {
+  const q = { deletedAt: null, hidden: false };
+  if (authorId) {
+    try { q.authorId = new Types.ObjectId(authorId); } catch { /* invalid id */ }
+  }
+
+  const skip = (page - 1) * limit;
+  const [items, total] = await Promise.all([
+    Post.find(q)
+      .sort({ createdAt: -1, _id: -1 })
+      .skip(skip)
+      .limit(limit)
+      .populate('authorId', 'nickname profileImage role')
+      .lean(),
+    Post.countDocuments(q),
+  ]);
+
+  const totalPages = Math.ceil(total / limit) || 1;
+  const safePage = Math.min(page, totalPages);
+
+  return { items: items.map(formatPost), total, page: safePage, totalPages };
+}
+
+module.exports = { create, listByCursor, listByPage, getById, update, softDelete };

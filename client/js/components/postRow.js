@@ -10,6 +10,7 @@ export function postRow(post) {
     <div class="post-row-meta">
       <span>${escHtml(authorName)}</span>
       <span>·</span>
+      <span>👁 ${post.viewCount}</span>
       <span>❤ ${post.likeCount}</span>
       <span>💬 ${post.commentCount}</span>
       <span>·</span>
