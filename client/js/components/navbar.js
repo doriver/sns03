@@ -21,6 +21,7 @@ export function renderNavbar() {
         <div class="nav-links">
           <a href="/posts" data-link>게시판</a>
           ${user ? `
+            <a href="/users/${user.id}" data-link>내 프로필</a>
             <a href="/posts/new" data-link>글쓰기</a>
             ${isAdmin ? `<a href="/admin" data-link>관리자</a>` : ''}
             <div class="nav-user">
@@ -28,7 +29,6 @@ export function renderNavbar() {
                 ${avatarHtml(user.profileImage, 'avatar-sm')}${escHtml(user.nickname)}
               </button>
               <div class="nav-dropdown-menu" id="nav-dropdown">
-                <button class="nav-dropdown-item" id="btn-profile">내 프로필</button>
                 <button class="nav-dropdown-item danger" id="btn-logout">로그아웃</button>
               </div>
             </div>
@@ -57,11 +57,6 @@ export function renderNavbar() {
       }
     };
     document.addEventListener('click', closeHandler);
-
-    navbar.querySelector('#btn-profile')?.addEventListener('click', () => {
-      dropdown.classList.remove('open');
-      navigate('/me');
-    });
 
     navbar.querySelector('#btn-logout')?.addEventListener('click', async () => {
       dropdown.classList.remove('open');
