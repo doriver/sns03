@@ -73,12 +73,13 @@ async function loadComments(section, postId) {
   async function fetch() {
     section.innerHTML = loader();
     const res = await getComments(postId, { page, size: 20 });
-    renderComments(section, postId, res, () => { page++; fetch(); });
+    const refresh = () => { page = 1; fetch(); };
+    renderComments(section, postId, res, () => { page++; fetch(); }, refresh);
   }
   fetch();
 }
 
-function renderComments(section, postId, res, loadMore) {
+function renderComments(section, postId, res, loadMore, refresh) {
   const user = getState('currentUser');
   section.innerHTML = `<h3 style="font-weight:700;margin-bottom:.75rem">댓글 ${res.total}개</h3>`;
 
@@ -96,8 +97,7 @@ function renderComments(section, postId, res, loadMore) {
       if (!content) return;
       try {
         await createComment(postId, content);
-        page = 1;
-        loadMore();
+        refresh();
       } catch (err) { form.querySelector('#comment-err').textContent = err.message; }
     });
     section.appendChild(form);
@@ -121,7 +121,7 @@ function renderComments(section, postId, res, loadMore) {
       <div>${escHtml(c.content)}</div>`;
     el.querySelector('[data-del]')?.addEventListener('click', async () => {
       if (await showConfirm('댓글을 삭제하시겠습니까?')) {
-        try { await deleteComment(c.id); showToast('삭제됐습니다', 'success'); loadMore(); } catch (err) { showToast(err.message, 'error'); }
+        try { await deleteComment(c.id); showToast('삭제됐습니다', 'success'); refresh(); } catch (err) { showToast(err.message, 'error'); }
       }
     });
     list.appendChild(el);
