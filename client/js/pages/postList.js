@@ -52,7 +52,7 @@ export async function postListPage(root) {
     loaderEl.innerHTML = loader();
     listEl.innerHTML = '';
     try {
-      const result = await getPosts({ page: pageNum, limit: 20 });
+      const result = await getPosts({ page: pageNum, limit: 10 });
       currentPage = result.page;
       totalPages = result.totalPages;
 
