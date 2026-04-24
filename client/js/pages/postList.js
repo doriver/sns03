@@ -1,5 +1,5 @@
 import { getPosts } from '../api/posts.js';
-import { postCard } from '../components/postCard.js';
+import { postRow } from '../components/postRow.js';
 import { loader } from '../components/loader.js';
 import { navigate } from '../router.js';
 import { getState } from '../store.js';
@@ -28,7 +28,7 @@ export async function postListPage(root) {
     loaderEl.innerHTML = loader();
     try {
       const result = await getPosts({ cursor: cursor || undefined, limit: 20 });
-      result.items.forEach((p) => listEl.appendChild(postCard(p)));
+      result.items.forEach((p) => listEl.appendChild(postRow(p)));
       cursor = result.nextCursor;
       if (!result.hasMore) observer.disconnect();
     } catch (e) {

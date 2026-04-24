@@ -26,6 +26,36 @@ async function getTimeline() {
       },
     },
     {
+      $lookup: {
+        from: 'comments',
+        let: { postId: '$_id' },
+        pipeline: [
+          { $match: { $expr: { $and: [{ $eq: ['$postId', '$$postId'] }, { $eq: ['$deletedAt', null] }] } } },
+          { $sort: { createdAt: -1 } },
+          { $limit: 3 },
+          {
+            $lookup: {
+              from: 'users',
+              localField: 'authorId',
+              foreignField: '_id',
+              pipeline: [{ $project: { nickname: 1, profileImage: 1, role: 1 } }],
+              as: 'authorArr',
+            },
+          },
+          {
+            $project: {
+              _id: 0,
+              id: '$_id',
+              content: 1,
+              createdAt: 1,
+              author: { $arrayElemAt: ['$authorArr', 0] },
+            },
+          },
+        ],
+        as: 'recentComments',
+      },
+    },
+    {
       $project: {
         _id: 0,
         id: '$_id',
@@ -38,6 +68,7 @@ async function getTimeline() {
         score: 1,
         createdAt: 1,
         author: { $arrayElemAt: ['$authorArr', 0] },
+        recentComments: 1,
       },
     },
   ]);
