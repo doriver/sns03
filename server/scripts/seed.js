@@ -1,6 +1,5 @@
 require('dotenv').config();
 const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
 
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/sns03';
 
@@ -17,11 +16,9 @@ async function seed() {
   await Comment.deleteMany({});
   console.log('Cleared existing data');
 
-  const hash = (pw) => bcrypt.hash(pw, 10);
-
   const admin = await User.create({
     email: 'admin@sns03.dev',
-    passwordHash: await hash('Admin1234'),
+    passwordHash: 'Admin1234',
     nickname: 'admin',
     role: 'admin',
   });
@@ -30,7 +27,7 @@ async function seed() {
     Array.from({ length: 5 }, (_, i) =>
       User.create({
         email: `user${i + 1}@sns03.dev`,
-        passwordHash: bcrypt.hashSync(`User${i + 1}1234`, 10),
+        passwordHash: `User${i + 1}1234`,
         nickname: `유저${i + 1}`,
         role: 'user',
       })
