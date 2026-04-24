@@ -28,7 +28,9 @@ async function getProfile(req, res) {
   const user = await usersService.getPublicProfile(req.params.id);
   const User = require('../../models/User');
   const u = new User(user);
-  return ok(res, { user: u.toPublicJSON() });
+  const { isFollowing } = require('../follows/follows.service');
+  const following = req.user ? await isFollowing(req.user._id, user._id) : false;
+  return ok(res, { user: { ...u.toPublicJSON(), isFollowing: following } });
 }
 
 module.exports = { getMe, updateMe, deleteMe, getProfile };

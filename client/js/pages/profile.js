@@ -31,7 +31,7 @@ function render(root, user, id) {
           <span id="follower-count" style="cursor:pointer">팔로워 ${user.followerCount}</span>
           <span id="following-count" style="cursor:pointer">팔로잉 ${user.followingCount}</span>
         </div>
-        ${!isMe && me ? `<button class="btn-outline btn-sm" style="margin-top:.5rem" id="btn-follow">팔로우</button>` : ''}
+        ${!isMe && me ? `<button class="btn-outline btn-sm" style="margin-top:.5rem" id="btn-follow">${user.isFollowing ? '언팔로우' : '팔로우'}</button>` : ''}
         ${isMe ? `<button class="btn-outline btn-sm" style="margin-top:.5rem" id="btn-edit-profile">프로필 편집</button>` : ''}
       </div>
     </div>
@@ -45,11 +45,17 @@ function render(root, user, id) {
   });
 
   root.querySelector('#btn-follow')?.addEventListener('click', async (e) => {
+    const isCurrentlyFollowing = e.target.textContent.trim() === '언팔로우';
     try {
-      const res = await follow(id);
-      e.target.textContent = res.following ? '언팔로우' : '팔로우';
-      e.target.onclick = async () => { const r = await unfollow(id); e.target.textContent = r.following ? '언팔로우' : '팔로우'; };
-      showToast(res.following ? '팔로우했습니다' : '언팔로우했습니다', 'info');
+      if (isCurrentlyFollowing) {
+        await unfollow(id);
+        e.target.textContent = '팔로우';
+        showToast('언팔로우했습니다', 'info');
+      } else {
+        await follow(id);
+        e.target.textContent = '언팔로우';
+        showToast('팔로우했습니다', 'info');
+      }
     } catch (err) { showToast(err.message, 'error'); }
   });
 
