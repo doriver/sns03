@@ -129,14 +129,69 @@ export async function chatRoomListPage(root) {
     });
   }
 
+  function applyRoomCreated(room) {
+    // 빈 상태 메시지 제거
+    const empty = listEl.querySelector('p');
+    if (empty) listEl.innerHTML = '';
+
+    // 중복 방지
+    if (listEl.querySelector(`[data-id="${CSS.escape(String(room.id))}"]`)) return;
+
+    // 1페이지일 때만 맨 위에 삽입 (다른 페이지면 전체 재로딩)
+    if (currentPage !== 1) { loadPage(currentPage); return; }
+
+    const tmp = document.createElement('div');
+    tmp.innerHTML = roomRow(room, user).trim();
+    const newRow = tmp.firstChild;
+    listEl.prepend(newRow);
+
+    newRow.querySelector('.btn-enter-room')?.addEventListener('click', () => navigate(`/chat/${room.id}`));
+    newRow.querySelector('.btn-close-room')?.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (!confirm('채팅방을 종료하시겠습니까?')) return;
+      try { await closeRoom(String(room.id)); showToast('채팅방이 종료되었습니다', 'info'); }
+      catch (err) { showToast(err.message, 'error'); }
+    });
+  }
+
+  function applyRoomClosed(roomId) {
+    const row = listEl.querySelector(`[data-id="${CSS.escape(String(roomId))}"]`);
+    if (row) {
+      row.style.transition = 'opacity .2s';
+      row.style.opacity = '0';
+      setTimeout(() => {
+        row.remove();
+        if (!listEl.querySelector('.chat-room-row')) {
+          listEl.innerHTML = '<p style="padding:1.5rem;color:var(--color-text-muted);text-align:center">활성 채팅방이 없습니다.</p>';
+        }
+      }, 200);
+    }
+  }
+
+  function applyParticipantChanged(roomId, count) {
+    const row = listEl.querySelector(`[data-id="${CSS.escape(String(roomId))}"]`);
+    if (!row) return;
+    const countEl = row.querySelector('.chat-room-count');
+    if (countEl) {
+      const capacity = countEl.textContent.split('/')[1]?.trim() || '';
+      countEl.textContent = `${count} / ${capacity}`;
+    }
+  }
+
   function connectSSE() {
     const at = getAccessToken();
     if (!at) return;
     sseSource = new EventSource(`/api/chat/rooms/stream?token=${encodeURIComponent(at)}`, { withCredentials: true });
 
-    sseSource.addEventListener('room:created', () => loadPage(currentPage));
-    sseSource.addEventListener('room:closed', () => loadPage(currentPage));
-    sseSource.addEventListener('room:participant-changed', () => loadPage(currentPage));
+    sseSource.addEventListener('room:created', (e) => {
+      try { applyRoomCreated(JSON.parse(e.data)); } catch { loadPage(currentPage); }
+    });
+    sseSource.addEventListener('room:closed', (e) => {
+      try { applyRoomClosed(JSON.parse(e.data).roomId); } catch { loadPage(currentPage); }
+    });
+    sseSource.addEventListener('room:participant-changed', (e) => {
+      try { const d = JSON.parse(e.data); applyParticipantChanged(d.roomId, d.count); } catch { /* ignore */ }
+    });
     sseSource.onerror = () => {
       sseSource.close();
       setTimeout(connectSSE, 5000);
