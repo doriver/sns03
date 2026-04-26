@@ -41,6 +41,7 @@ app.use('/api', require('./modules/comments/comments.route'));
 app.use('/api', require('./modules/likes/likes.route'));
 app.use('/api', require('./modules/follows/follows.route'));
 app.use('/api', require('./modules/admin/admin.route'));
+app.use('/api', require('./modules/chat/chat.route'));
 
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api')) return;
