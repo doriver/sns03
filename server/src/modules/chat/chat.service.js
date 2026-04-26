@@ -156,6 +156,7 @@ async function joinRoom(user, roomId) {
   const participants = await getActiveParticipants(String(roomId));
   broadcastRoomList('room:participant-changed', { roomId: String(roomId), count: newCount });
   broadcastRoom(String(roomId), 'presence:update', { roomId: String(roomId), count: newCount, participants });
+  broadcastRoom(String(roomId), 'presence:join', { nickname: user.nickname });
 
   return { roomId: String(roomId), participantCount: newCount };
 }
@@ -193,6 +194,7 @@ async function leaveRoom(user, roomId) {
   const participants = await getActiveParticipants(String(roomId));
   broadcastRoomList('room:participant-changed', { roomId: String(roomId), count: safeCount });
   broadcastRoom(String(roomId), 'presence:update', { roomId: String(roomId), count: safeCount, participants });
+  broadcastRoom(String(roomId), 'presence:leave', { nickname: user.nickname });
 
   return { closed: false, participantCount: safeCount };
 }

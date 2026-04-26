@@ -164,6 +164,7 @@
 .chat-msg-time { font-size: .65rem; color: var(--color-text-muted); white-space: nowrap; flex-shrink: 0; line-height: 1; margin-bottom: 3px; }
 .chat-msg--mine .chat-msg-time { color: var(--color-text-muted); }
 
+.chat-system-msg { text-align: center; font-size: .75rem; color: var(--color-text-muted); padding: .3rem 0; }
 .chat-input-row { display: flex; gap: .5rem; padding-top: .5rem; border-top: 1px solid var(--color-border); }
 
 /* Create room modal */

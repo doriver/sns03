@@ -28,6 +28,10 @@ function msgHtml(m, myId) {
   </div>`;
 }
 
+function systemMsgHtml(text) {
+  return `<div class="chat-system-msg">${escHtml(text)}</div>`;
+}
+
 function participantHtml(p) {
   return `<div class="chat-participant-item">
     ${avatarHtml(p.profileImage, 'avatar-sm')}
@@ -62,6 +66,7 @@ export async function chatRoomPage(root, { id: roomId }) {
   const canClose = isOwner || isAdmin;
 
   root.innerHTML = `
+    <h2 class="page-title">단체 채팅</h2>
     <div class="chat-room-layout">
       <div class="chat-room-main card">
         <div class="chat-room-header">
@@ -129,6 +134,12 @@ export async function chatRoomPage(root, { id: roomId }) {
         const atBottom = msgArea.scrollHeight - msgArea.scrollTop - msgArea.clientHeight < 50;
         msgArea.insertAdjacentHTML('beforeend', msgHtml(msg.data, user.id));
         if (atBottom) msgArea.scrollTop = msgArea.scrollHeight;
+      } else if (msg.type === 'presence:join') {
+        msgArea.insertAdjacentHTML('beforeend', systemMsgHtml(`${msg.data.nickname}님이 입장하셨습니다`));
+        msgArea.scrollTop = msgArea.scrollHeight;
+      } else if (msg.type === 'presence:leave') {
+        msgArea.insertAdjacentHTML('beforeend', systemMsgHtml(`${msg.data.nickname}님이 퇴장하셨습니다`));
+        msgArea.scrollTop = msgArea.scrollHeight;
       } else if (msg.type === 'presence:update') {
         const countEl = root.querySelector('#participant-count');
         if (countEl) countEl.textContent = `${msg.data.count} / ${room.capacity}`;
