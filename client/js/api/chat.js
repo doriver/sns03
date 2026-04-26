@@ -7,3 +7,4 @@ export const closeRoom = (id) => post(`/api/chat/rooms/${id}/close`);
 export const joinRoom = (id) => post(`/api/chat/rooms/${id}/join`);
 export const leaveRoom = (id) => post(`/api/chat/rooms/${id}/leave`);
 export const getMessages = (id, params) => get(`/api/chat/rooms/${id}/messages`, params);
+export const getParticipants = (id) => get(`/api/chat/rooms/${id}/participants`);

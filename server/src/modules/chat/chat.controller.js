@@ -49,4 +49,9 @@ async function getRoom(req, res) {
   return ok(res, { room });
 }
 
-module.exports = { createRoom, listRooms, streamRoomList, closeRoom, joinRoom, leaveRoom, getMessages, getRoom };
+async function getParticipants(req, res) {
+  const participants = await chatService.getParticipants(req.params.id);
+  return ok(res, { participants });
+}
+
+module.exports = { createRoom, listRooms, streamRoomList, closeRoom, joinRoom, leaveRoom, getMessages, getRoom, getParticipants };

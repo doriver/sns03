@@ -117,6 +117,14 @@ async function closeRoom(user, roomId) {
   broadcastRoomList('room:closed', { roomId: String(roomId) });
 }
 
+async function getActiveParticipants(roomId) {
+  const redis = getRedis();
+  const memberIds = await redis.smembers(`chat:room:${roomId}:members`);
+  if (!memberIds.length) return [];
+  const users = await User.find({ _id: { $in: memberIds } }, 'nickname profileImage').lean();
+  return users.map((u) => ({ id: String(u._id), nickname: u.nickname, profileImage: u.profileImage || null }));
+}
+
 async function joinRoom(user, roomId) {
   const room = await ChatRoom.findById(roomId).lean();
   if (!room) throw new AppError('CHAT_ROOM_NOT_FOUND', 404, '채팅방을 찾을 수 없습니다');
@@ -145,8 +153,9 @@ async function joinRoom(user, roomId) {
   await ChatParticipation.create({ roomId, userId: user._id, joinedAt: now });
   await ChatRoom.findByIdAndUpdate(roomId, { $set: { participantCount: newCount } });
 
+  const participants = await getActiveParticipants(String(roomId));
   broadcastRoomList('room:participant-changed', { roomId: String(roomId), count: newCount });
-  broadcastRoom(String(roomId), 'presence:update', { roomId: String(roomId), count: newCount });
+  broadcastRoom(String(roomId), 'presence:update', { roomId: String(roomId), count: newCount, participants });
 
   return { roomId: String(roomId), participantCount: newCount };
 }
@@ -181,8 +190,9 @@ async function leaveRoom(user, roomId) {
   );
   await ChatRoom.findByIdAndUpdate(roomId, { $set: { participantCount: safeCount } });
 
+  const participants = await getActiveParticipants(String(roomId));
   broadcastRoomList('room:participant-changed', { roomId: String(roomId), count: safeCount });
-  broadcastRoom(String(roomId), 'presence:update', { roomId: String(roomId), count: safeCount });
+  broadcastRoom(String(roomId), 'presence:update', { roomId: String(roomId), count: safeCount, participants });
 
   return { closed: false, participantCount: safeCount };
 }
@@ -240,4 +250,10 @@ function formatRoom(room) {
   };
 }
 
-module.exports = { createRoom, listRooms, closeRoom, joinRoom, leaveRoom, getMessages, getRoom, flushBufferToMongo };
+async function getParticipants(roomId) {
+  const room = await ChatRoom.findById(roomId).lean();
+  if (!room) throw new AppError('CHAT_ROOM_NOT_FOUND', 404, '채팅방을 찾을 수 없습니다');
+  return getActiveParticipants(String(roomId));
+}
+
+module.exports = { createRoom, listRooms, closeRoom, joinRoom, leaveRoom, getMessages, getRoom, getParticipants, flushBufferToMongo };

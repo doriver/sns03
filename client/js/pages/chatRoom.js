@@ -1,4 +1,4 @@
-import { getRoom, joinRoom, leaveRoom, getMessages } from '../api/chat.js';
+import { getRoom, joinRoom, leaveRoom, getMessages, getParticipants } from '../api/chat.js';
 import { navigate } from '../router.js';
 import { getState, getAccessToken } from '../store.js';
 import { showToast } from '../components/toast.js';
@@ -25,9 +25,19 @@ function msgHtml(m) {
   </div>`;
 }
 
+function participantHtml(p) {
+  return `<div class="chat-participant-item">
+    ${avatarHtml(p.profileImage, 'avatar-sm')}
+    <span class="chat-participant-name">${escHtml(p.nickname)}</span>
+  </div>`;
+}
+
 export async function chatRoomPage(root, { id: roomId }) {
   const user = getState('currentUser');
   if (!user) { navigate('/login'); return; }
+
+  const pageRoot = document.getElementById('page-root');
+  pageRoot?.classList.add('chat-room-page');
 
   root.innerHTML = loader();
 
@@ -49,25 +59,40 @@ export async function chatRoomPage(root, { id: roomId }) {
   const canClose = isOwner || isAdmin;
 
   root.innerHTML = `
-    <div class="chat-room-header">
-      <button id="btn-back" class="btn-secondary btn-sm">← 목록</button>
-      <div>
-        <strong>${escHtml(room.name)}</strong>
-        <span id="participant-count" style="margin-left:.5rem;color:var(--color-text-muted)">${room.participantCount} / ${room.capacity}</span>
+    <div class="chat-room-layout">
+      <div class="chat-room-main card">
+        <div class="chat-room-header">
+          <button id="btn-back" class="btn-outline btn-sm">← 목록</button>
+          <div style="flex:1;min-width:0">
+            <strong style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block">${escHtml(room.name)}</strong>
+          </div>
+          <div style="display:flex;gap:.4rem;flex-shrink:0">
+            ${canClose ? `<button id="btn-close-room" class="btn-danger btn-sm">방 종료</button>` : ''}
+            <button id="btn-leave" class="btn-outline btn-sm">나가기</button>
+          </div>
+        </div>
+        <div id="msg-area" class="chat-msg-area"></div>
+        <div class="chat-input-row">
+          <input id="chat-input" type="text" maxlength="500" placeholder="메시지 입력 (Enter 전송)" class="input" style="flex:1">
+          <button id="btn-send" class="btn-primary btn-sm">전송</button>
+        </div>
       </div>
-      <div>
-        ${canClose ? `<button id="btn-close-room" class="btn-danger btn-sm">방 종료</button>` : ''}
-        <button id="btn-leave" class="btn-secondary btn-sm">나가기</button>
-      </div>
-    </div>
-    <div id="msg-area" class="chat-msg-area"></div>
-    <div class="chat-input-row">
-      <input id="chat-input" type="text" maxlength="500" placeholder="메시지 입력 (Enter 전송)" class="input" style="flex:1">
-      <button id="btn-send" class="btn-primary btn-sm">전송</button>
+      <aside class="chat-room-sidebar card">
+        <div class="sidebar-heading">참석자 <span id="participant-count">${room.participantCount} / ${room.capacity}</span></div>
+        <div id="participant-list" class="participant-list"></div>
+      </aside>
     </div>`;
 
   const msgArea = root.querySelector('#msg-area');
   const chatInput = root.querySelector('#chat-input');
+
+  function renderParticipants(list) {
+    const el = root.querySelector('#participant-list');
+    if (!el) return;
+    el.innerHTML = list.length
+      ? list.map(participantHtml).join('')
+      : '<p class="chat-participant-empty">없음</p>';
+  }
 
   // 이전 메시지 로드
   try {
@@ -77,6 +102,12 @@ export async function chatRoomPage(root, { id: roomId }) {
       msgArea.scrollTop = msgArea.scrollHeight;
     }
   } catch { /* 진행 중 방은 Redis에서, 종료된 방은 Mongo에서 — 에러 무시 */ }
+
+  // 초기 참석자 목록 로드
+  try {
+    const { participants } = await getParticipants(roomId);
+    renderParticipants(participants);
+  } catch { /* ignore */ }
 
   // WebSocket 연결
   const at = getAccessToken();
@@ -96,8 +127,9 @@ export async function chatRoomPage(root, { id: roomId }) {
         msgArea.insertAdjacentHTML('beforeend', msgHtml(msg.data));
         if (atBottom) msgArea.scrollTop = msgArea.scrollHeight;
       } else if (msg.type === 'presence:update') {
-        const el = root.querySelector('#participant-count');
-        if (el) el.textContent = `${msg.data.count} / ${room.capacity}`;
+        const countEl = root.querySelector('#participant-count');
+        if (countEl) countEl.textContent = `${msg.data.count} / ${room.capacity}`;
+        if (msg.data.participants) renderParticipants(msg.data.participants);
       } else if (msg.type === 'room:closed') {
         showToast('채팅방이 종료되었습니다', 'info');
         navigate('/chat');
@@ -145,10 +177,11 @@ export async function chatRoomPage(root, { id: roomId }) {
     }
   });
 
-  // 페이지 떠날 때 WS 정리
+  // 페이지 떠날 때 WS 정리 + 레이아웃 클래스 제거
   const observer = new MutationObserver(() => {
     if (!document.contains(root)) {
       ws?.close();
+      pageRoot?.classList.remove('chat-room-page');
       observer.disconnect();
     }
   });

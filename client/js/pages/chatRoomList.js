@@ -62,7 +62,7 @@ export async function chatRoomListPage(root) {
           <textarea id="input-description" maxlength="200" rows="2" class="input" placeholder="설명"></textarea>
         </div>
         <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:1rem">
-          <button id="btn-modal-cancel" class="btn-secondary btn-sm">취소</button>
+          <button id="btn-modal-cancel" class="btn-outline btn-sm">취소</button>
           <button id="btn-modal-submit" class="btn-primary btn-sm">만들기</button>
         </div>
       </div>

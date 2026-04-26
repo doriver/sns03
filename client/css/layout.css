@@ -62,6 +62,10 @@
   flex: 1;
 }
 
+#page-root.chat-room-page {
+  max-width: 900px;
+}
+
 .page-title { font-size: 1.25rem; font-weight: 700; margin-bottom: 1.25rem; }
 
 .card {

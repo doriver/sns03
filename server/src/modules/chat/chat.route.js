@@ -13,5 +13,6 @@ router.post('/chat/rooms/:id/close', roomIdRule, validate, requireAuth, ctrl.clo
 router.post('/chat/rooms/:id/join', chatWriteLimiter, roomIdRule, validate, requireAuth, ctrl.joinRoom);
 router.post('/chat/rooms/:id/leave', roomIdRule, validate, requireAuth, ctrl.leaveRoom);
 router.get('/chat/rooms/:id/messages', roomIdRule, messageQueryRules, validate, requireAuth, ctrl.getMessages);
+router.get('/chat/rooms/:id/participants', roomIdRule, validate, requireAuth, ctrl.getParticipants);
 
 module.exports = router;
