@@ -1,0 +1,10 @@
+server/node_modules
+server/logs
+server/uploads
+server/.env
+nginx
+docker-compose.yml
+Dockerfile
+.git
+.gitignore
+docs
