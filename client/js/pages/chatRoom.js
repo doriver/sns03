@@ -10,18 +10,21 @@ function formatTime(iso) {
   return new Date(iso).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
 }
 
-function msgHtml(m) {
+function msgHtml(m, myId) {
+  const authorId = String(m.authorId || m.author?._id || '');
+  const isMine = myId && authorId === String(myId);
   const name = escHtml(m.nickname || m.author?.nickname || '');
   const img = avatarHtml(m.profileImage || m.author?.profileImage, 'avatar-sm');
   const content = escHtml(m.content);
   const time = formatTime(m.createdAt);
-  return `<div class="chat-msg">
-    ${img}
+  return `<div class="chat-msg${isMine ? ' chat-msg--mine' : ''}">
     <div class="chat-msg-body">
-      <span class="chat-msg-name">${name}</span>
-      <span class="chat-msg-time">${time}</span>
-      <p class="chat-msg-content">${content}</p>
+      ${isMine ? '' : `<div class="chat-msg-name-row">${img}<span class="chat-msg-name">${name}</span></div>`}
+      <div class="chat-msg-bubble">
+        <p class="chat-msg-content">${content}</p>
+      </div>
     </div>
+    <span class="chat-msg-time">${time}</span>
   </div>`;
 }
 
@@ -98,7 +101,7 @@ export async function chatRoomPage(root, { id: roomId }) {
   try {
     const { messages } = await getMessages(roomId);
     if (messages.length) {
-      msgArea.innerHTML = messages.map(msgHtml).join('');
+      msgArea.innerHTML = messages.map((m) => msgHtml(m, user.id)).join('');
       msgArea.scrollTop = msgArea.scrollHeight;
     }
   } catch { /* 진행 중 방은 Redis에서, 종료된 방은 Mongo에서 — 에러 무시 */ }
@@ -124,7 +127,7 @@ export async function chatRoomPage(root, { id: roomId }) {
 
       if (msg.type === 'message:new') {
         const atBottom = msgArea.scrollHeight - msgArea.scrollTop - msgArea.clientHeight < 50;
-        msgArea.insertAdjacentHTML('beforeend', msgHtml(msg.data));
+        msgArea.insertAdjacentHTML('beforeend', msgHtml(msg.data, user.id));
         if (atBottom) msgArea.scrollTop = msgArea.scrollHeight;
       } else if (msg.type === 'presence:update') {
         const countEl = root.querySelector('#participant-count');
