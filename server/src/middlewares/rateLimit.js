@@ -1,4 +1,6 @@
 const rateLimit = require('express-rate-limit');
+const { RedisStore } = require('rate-limit-redis');
+const { getRedis } = require('../config/redis');
 const { rateLimit: rlConfig } = require('../config/env');
 
 function makeLimiter(max, windowMs = 60 * 1000) {
@@ -7,6 +9,9 @@ function makeLimiter(max, windowMs = 60 * 1000) {
     max,
     standardHeaders: true,
     legacyHeaders: false,
+    store: new RedisStore({
+      sendCommand: (...args) => getRedis().call(...args),
+    }),
     handler: (req, res) => {
       res.status(429).json({
         ok: false,
