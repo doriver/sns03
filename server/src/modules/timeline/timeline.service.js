@@ -2,7 +2,7 @@ const Post = require('../../models/Post');
 const { getRedis } = require('../../config/redis');
 
 const CACHE_KEY = 'timeline:main';
-const CACHE_TTL = 60;
+const CACHE_TTL = 150;
 
 async function getTimeline() {
   const redis = getRedis();
@@ -73,7 +73,7 @@ async function getTimeline() {
     },
   ]);
 
-  await redis.set(CACHE_KEY, JSON.stringify(items), 'EX', CACHE_TTL);
+  await redis.set(CACHE_KEY, JSON.stringify(items), 'EX', CACHE_TTL); // 집계 결과를 JSON 문자열로 직렬화해서 Redis에 저장
   return items;
 }
 

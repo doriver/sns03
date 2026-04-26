@@ -1,14 +1,19 @@
+const http = require('http');
 const app = require('./app');
 const { connectDB, closeDB } = require('./config/db');
 const { connectRedis, closeRedis } = require('./config/redis');
 const { port } = require('./config/env');
 const logger = require('./config/logger');
+const { attachWebSocket } = require('./modules/chat/chat.realtime');
 
 async function start() {
   await connectDB();
   await connectRedis();
 
-  const server = app.listen(port, () => {
+  const server = http.createServer(app);
+  attachWebSocket(server);
+
+  server.listen(port, () => {
     logger.info(`Server listening on port ${port}`);
   });
 

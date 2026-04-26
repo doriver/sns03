@@ -18,5 +18,6 @@ function makeLimiter(max, windowMs = 60 * 1000) {
 
 const globalLimiter = makeLimiter(rlConfig.global);
 const loginLimiter = makeLimiter(rlConfig.login);
+const chatWriteLimiter = makeLimiter(30);
 
-module.exports = { globalLimiter, loginLimiter };
+module.exports = { globalLimiter, loginLimiter, chatWriteLimiter };
