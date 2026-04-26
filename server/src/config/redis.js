@@ -15,7 +15,16 @@ function getRedis() {
 }
 
 async function connectRedis() {
-  await getRedis().connect();
+  const c = getRedis();
+  if (c.status === 'ready') return;
+  if (c.status === 'connecting' || c.status === 'connect') {
+    await new Promise((resolve, reject) => {
+      c.once('ready', resolve);
+      c.once('error', reject);
+    });
+    return;
+  }
+  await c.connect();
 }
 
 async function closeRedis() {

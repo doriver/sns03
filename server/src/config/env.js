@@ -1,4 +1,5 @@
 require('dotenv').config();
+const os = require('os');
 
 const required = ['MONGO_URI', 'REDIS_URL', 'JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET'];
 const missing = required.filter((k) => !process.env[k]);
@@ -11,6 +12,10 @@ module.exports = {
   nodeEnv: process.env.NODE_ENV || 'development',
   mongoUri: process.env.MONGO_URI,
   redisUrl: process.env.REDIS_URL,
+  instanceId: process.env.INSTANCE_ID || os.hostname(),
+  logToStdoutOnly: process.env.LOG_TO_STDOUT_ONLY === 'true',
+  socketIoPath: process.env.SOCKET_IO_PATH || '/socket.io',
+  trustProxy: process.env.TRUST_PROXY === 'true',
   jwt: {
     accessSecret: process.env.JWT_ACCESS_SECRET,
     refreshSecret: process.env.JWT_REFRESH_SECRET,

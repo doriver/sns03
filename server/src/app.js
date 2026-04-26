@@ -9,9 +9,11 @@ const { globalLimiter } = require('./middlewares/rateLimit');
 const errorHandler = require('./middlewares/errorHandler');
 const notFound = require('./middlewares/notFound');
 const logger = require('./config/logger');
-const { upload: uploadConfig } = require('./config/env');
+const { upload: uploadConfig, trustProxy } = require('./config/env');
 
 const app = express();
+
+if (trustProxy) app.set('trust proxy', 1);
 
 app.use(helmetMiddleware);
 app.use(corsMiddleware);

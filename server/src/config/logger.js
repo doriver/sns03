@@ -13,30 +13,35 @@ function maskSensitive(obj) {
   );
 }
 
+const logToStdoutOnly = process.env.LOG_TO_STDOUT_ONLY === 'true';
+const instanceId = process.env.INSTANCE_ID || require('os').hostname();
 const logsDir = path.join(__dirname, '../../logs');
 
-const transports = [
-  new winston.transports.DailyRotateFile({
-    filename: path.join(logsDir, 'app-%DATE%.log'),
-    datePattern: 'YYYY-MM-DD',
-    maxFiles: '14d',
-    level: 'info',
-  }),
-  new winston.transports.DailyRotateFile({
-    filename: path.join(logsDir, 'error-%DATE%.log'),
-    datePattern: 'YYYY-MM-DD',
-    maxFiles: '30d',
-    level: 'error',
-  }),
-];
+const transports = [];
+
+if (!logToStdoutOnly) {
+  transports.push(
+    new winston.transports.DailyRotateFile({
+      filename: path.join(logsDir, 'app-%DATE%.log'),
+      datePattern: 'YYYY-MM-DD',
+      maxFiles: '14d',
+      level: 'info',
+    }),
+    new winston.transports.DailyRotateFile({
+      filename: path.join(logsDir, 'error-%DATE%.log'),
+      datePattern: 'YYYY-MM-DD',
+      maxFiles: '30d',
+      level: 'error',
+    })
+  );
+}
 
 if (process.env.NODE_ENV !== 'test') {
   transports.push(
     new winston.transports.Console({
-      format: winston.format.combine(
-        winston.format.colorize(),
-        winston.format.simple()
-      ),
+      format: logToStdoutOnly
+        ? winston.format.combine(winston.format.timestamp(), winston.format.json())
+        : winston.format.combine(winston.format.colorize(), winston.format.simple()),
     })
   );
 }
@@ -46,6 +51,7 @@ const logger = winston.createLogger({
   format: winston.format.combine(
     winston.format.timestamp(),
     winston.format((info) => {
+      info.instanceId = instanceId;
       if (info.meta) info.meta = maskSensitive(info.meta);
       return info;
     })(),
