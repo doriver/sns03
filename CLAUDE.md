@@ -33,9 +33,20 @@ npx jest -t "login with valid credentials"
 
 ### 서버: 도메인별 모듈 구조
 
-`server/src/modules/<domain>/` 에 도메인 하나의 route + controller + service + validator 가 함께 들어있다. 도메인은 `auth`, `users`, `posts`, `comments`, `likes`, `follows`, `timeline`, `admin`. 모든 라우터는 `src/app.js` 에서 `/api` 에 마운트되며, URL prefix 는 app 이 아니라 각 route 파일에 정의되어 있다. 도메인을 추가할 때는 네 개 파일을 만들고 `app.js` 에 라우터를 등록한다.
+`server/src/modules/<domain>/` 에 도메인 하나의 route + controller + service + validator 가 함께 들어있다. 도메인은 `auth`, `users`, `posts`, `comments`, `likes`, `follows`, `admin`, `chat`. 모든 라우터는 `src/app.js` 에서 `/api` 에 마운트되며, URL prefix 는 app 이 아니라 각 route 파일에 정의되어 있다. 도메인을 추가할 때는 네 개 파일을 만들고 `app.js` 에 라우터를 등록한다.
 
-Mongoose 스키마는 모듈 내부가 아니라 `src/models/` 에 모아 두어 여러 서비스가 공유할 수 있게 한다: `User`, `Post`, `Comment`, `Like`, `Follow`, `AdminLog`.
+`timeline` 모듈은 controller + service 만 존재하며 별도 라우터로 마운트되어 있지 않다 — 다른 도메인(예: `posts`)에서 호출해 사용한다. 신규 타임라인 엔드포인트가 필요하면 라우터를 추가하고 `app.js` 에 등록해야 한다.
+
+Mongoose 스키마는 모듈 내부가 아니라 `src/models/` 에 모아 두어 여러 서비스가 공유할 수 있게 한다: `User`, `Post`, `Comment`, `Like`, `Follow`, `AdminLog`, `ChatRoom`, `ChatParticipation`, `ChatMessage`.
+
+### 실시간 레이어 (chat)
+
+`modules/chat/chat.realtime.js` 가 두 가지 푸시 채널을 관리한다:
+
+- **WebSocket** (`ws` 패키지): 채팅방별 메시지 브로드캐스트. `server.js` 에서 `attachWebSocket(httpServer)` 로 HTTP 서버에 직접 붙는다 — Express app 에는 붙지 않으므로 `app.js` 가 아니라 `server.js` 를 거쳐야 활성화된다. 따라서 supertest 기반 통합 테스트로는 WebSocket 경로를 검증할 수 없다.
+- **SSE**: 채팅방 목록 변경(입/퇴장 등)을 푸시한다. `Authorization` 헤더를 못 쓰는 EventSource 한계 때문에 SSE 경로의 인증은 일반 미들웨어와 다르게 처리되니, 인증 변경 시 같이 확인할 것.
+
+소켓별 rate limit 은 `chat.realtime.js` 내부 인메모리 버킷으로 관리한다(REST 의 `globalLimiter` 와 별개).
 
 ### 미들웨어 스택 (순서 중요, `app.js` 에 정의)
 
