@@ -1,44 +1,140 @@
-const { WebSocketServer } = require('ws');
+const { Server } = require('socket.io');
+const { createAdapter } = require('@socket.io/redis-adapter');
 const { verifyAccessToken } = require('../auth/token.service');
 const User = require('../../models/User');
 const ChatParticipation = require('../../models/ChatParticipation');
 const { getRedis } = require('../../config/redis');
+const { socketIoPath, corsOrigin } = require('../../config/env');
 const logger = require('../../config/logger');
 
-// roomId(string) -> Set<WebSocket>
-const wsRooms = new Map();
+const SSE_CHANNEL = 'sse:room-list';
 
-// SSE 목록 구독자
+// 이 인스턴스에 연결된 SSE 클라이언트
 const sseListeners = new Set();
 
-// 소켓별 rate limit: userId -> { count, resetAt }
-const rateBuckets = new Map();
+let io;
 
-function getRoomSockets(roomId) {
-  if (!wsRooms.has(roomId)) wsRooms.set(roomId, new Set());
-  return wsRooms.get(roomId);
+async function checkChatRateLimit(userId) {
+  const sec = Math.floor(Date.now() / 1000);
+  const key = `chat:rl:${userId}:${sec}`;
+  const r = getRedis();
+  const count = await r.incr(key);
+  if (count === 1) await r.expire(key, 1);
+  return count <= 3;
+}
+
+function initSsePubSub() {
+  const sseSub = getRedis().duplicate();
+  sseSub.subscribe(SSE_CHANNEL);
+  sseSub.on('message', (_ch, raw) => {
+    let parsed;
+    try { parsed = JSON.parse(raw); } catch { return; }
+    const { type, data } = parsed;
+    const msg = `event: ${type}\ndata: ${JSON.stringify(data)}\n\n`;
+    for (const res of sseListeners) {
+      try { res.write(msg); } catch { sseListeners.delete(res); }
+    }
+  });
+}
+
+function attachWebSocket(server) {
+  io = new Server(server, {
+    path: socketIoPath,
+    cors: { origin: corsOrigin, credentials: true },
+    transports: ['websocket'],
+  });
+
+  const pub = getRedis().duplicate();
+  const sub = getRedis().duplicate();
+  io.adapter(createAdapter(pub, sub));
+
+  io.use(async (socket, next) => {
+    const token = socket.handshake.auth?.token;
+    if (!token) return next(new Error('UNAUTHORIZED'));
+    try {
+      const payload = verifyAccessToken(token);
+      const user = await User.findById(payload.sub).lean();
+      if (!user || user.deletedAt || user.bannedAt) throw new Error('invalid user');
+      socket.data.user = user;
+      next();
+    } catch {
+      next(new Error('UNAUTHORIZED'));
+    }
+  });
+
+  io.on('connection', (socket) => {
+    const user = socket.data.user;
+
+    socket.on('room:join', async ({ roomId } = {}, cb) => {
+      if (!roomId) return cb?.({ ok: false });
+      try {
+        const participation = await ChatParticipation.findOne({
+          roomId,
+          userId: user._id,
+          leftAt: null,
+        }).lean();
+        if (!participation) return cb?.({ ok: false, error: 'NOT_JOINED' });
+        socket.join('room:' + roomId);
+        cb?.({ ok: true });
+      } catch (err) {
+        logger.error('room:join error', { err: err.message });
+        cb?.({ ok: false });
+      }
+    });
+
+    socket.on('room:leave', ({ roomId } = {}) => {
+      if (roomId) socket.leave('room:' + roomId);
+    });
+
+    socket.on('message:send', async ({ roomId, content } = {}, cb) => {
+      if (!roomId || !content) return cb?.({ ok: false });
+      const text = String(content).trim();
+      if (!text || text.length > 500) return cb?.({ ok: false });
+
+      try {
+        const allowed = await checkChatRateLimit(String(user._id));
+        if (!allowed) {
+          socket.emit('error', { code: 'RATE_LIMIT', message: 'Too fast' });
+          return cb?.({ ok: false });
+        }
+
+        const entry = {
+          authorId: String(user._id),
+          nickname: user.nickname,
+          profileImage: user.profileImage || null,
+          role: user.role,
+          content: text,
+          createdAt: new Date().toISOString(),
+        };
+        await getRedis().rpush(`chat:buf:${roomId}`, JSON.stringify(entry));
+        io.to('room:' + roomId).emit('message:new', entry);
+        cb?.({ ok: true });
+      } catch (err) {
+        logger.error('message:send error', { err: err.message });
+        cb?.({ ok: false });
+      }
+    });
+
+    socket.on('error', (err) => logger.error('socket error', { err: err.message }));
+  });
+
+  initSsePubSub();
 }
 
 function broadcastRoom(roomId, eventType, data) {
-  const sockets = wsRooms.get(roomId);
-  if (!sockets) return;
-  const msg = JSON.stringify({ type: eventType, data });
-  for (const ws of sockets) {
-    if (ws.readyState === ws.OPEN) ws.send(msg);
-  }
+  if (!io) return;
+  io.to('room:' + roomId).emit(eventType, data);
 }
 
 function broadcastRoomList(eventType, data) {
-  const msg = `event: ${eventType}\ndata: ${JSON.stringify(data)}\n\n`;
-  for (const res of sseListeners) {
-    try { res.write(msg); } catch { sseListeners.delete(res); }
-  }
+  getRedis().publish(SSE_CHANNEL, JSON.stringify({ type: eventType, data }));
 }
 
 function subscribeRoomList(req, res) {
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
   res.flushHeaders();
 
   res.write(': connected\n\n');
@@ -56,117 +152,9 @@ function subscribeRoomList(req, res) {
 }
 
 function forceCloseRoom(roomId) {
-  const sockets = wsRooms.get(roomId);
-  if (!sockets) return;
-  const msg = JSON.stringify({ type: 'room:closed' });
-  for (const ws of sockets) {
-    try {
-      if (ws.readyState === ws.OPEN) ws.send(msg);
-      ws.close(1000, 'room closed');
-    } catch { /* ignore */ }
-  }
-  wsRooms.delete(roomId);
-}
-
-function checkRateLimit(userId) {
-  const now = Date.now();
-  let bucket = rateBuckets.get(userId);
-  if (!bucket || now >= bucket.resetAt) {
-    bucket = { count: 0, resetAt: now + 1000 };
-    rateBuckets.set(userId, bucket);
-  }
-  bucket.count++;
-  return bucket.count <= 3;
-}
-
-function attachWebSocket(server) {
-  const wss = new WebSocketServer({ noServer: true });
-
-  server.on('upgrade', async (req, socket, head) => {
-    const url = new URL(req.url, 'http://localhost');
-    const match = url.pathname.match(/^\/ws\/chat\/([^/]+)$/);
-    if (!match) { socket.destroy(); return; }
-
-    const roomId = match[1];
-    const token = url.searchParams.get('token');
-    if (!token) { socket.destroy(); return; }
-
-    let user;
-    try {
-      const payload = verifyAccessToken(token);
-      user = await User.findById(payload.sub).lean();
-      if (!user || user.deletedAt || user.bannedAt) throw new Error('invalid user');
-    } catch {
-      socket.destroy();
-      return;
-    }
-
-    // 현재 참여 중(leftAt: null)인 row 확인
-    const participation = await ChatParticipation.findOne({
-      roomId,
-      userId: user._id,
-      leftAt: null,
-    }).lean();
-
-    if (!participation) { socket.destroy(); return; }
-
-    wss.handleUpgrade(req, socket, head, (ws) => {
-      ws._userId = String(user._id);
-      ws._nickname = user.nickname;
-      ws._profileImage = user.profileImage;
-      ws._role = user.role;
-      ws._roomId = roomId;
-
-      getRoomSockets(roomId).add(ws);
-
-      ws.on('message', async (raw) => {
-        let msg;
-        try { msg = JSON.parse(raw); } catch { return; }
-
-        if (msg.type === 'message:send') {
-          const content = String(msg.content || '').trim();
-          if (!content || content.length > 500) return;
-
-          if (!checkRateLimit(ws._userId)) {
-            ws.send(JSON.stringify({ type: 'error', data: { code: 'RATE_LIMIT', message: 'Too fast' } }));
-            return;
-          }
-
-          const redis = getRedis();
-          const entry = JSON.stringify({
-            authorId: ws._userId,
-            nickname: ws._nickname,
-            profileImage: ws._profileImage,
-            role: ws._role,
-            content,
-            createdAt: new Date().toISOString(),
-          });
-          await redis.rpush(`chat:buf:${roomId}`, entry);
-
-          broadcastRoom(roomId, 'message:new', {
-            authorId: ws._userId,
-            nickname: ws._nickname,
-            profileImage: ws._profileImage,
-            role: ws._role,
-            content,
-            createdAt: entry ? JSON.parse(entry).createdAt : new Date().toISOString(),
-          });
-
-        } else if (msg.type === 'leave') {
-          // 명시적 leave — HTTP /leave와 동일한 효과를 service layer에서 처리하기 위해
-          // 여기서는 WS만 정리하고 클라이언트가 HTTP /leave를 별도 호출하도록 설계
-          ws.close(1000, 'leave');
-        }
-      });
-
-      ws.on('close', () => {
-        getRoomSockets(roomId).delete(ws);
-        if (getRoomSockets(roomId).size === 0) wsRooms.delete(roomId);
-      });
-
-      ws.on('error', (err) => logger.error('WS error', { err: err.message }));
-    });
-  });
+  if (!io) return;
+  io.to('room:' + roomId).emit('room:closed');
+  io.in('room:' + roomId).disconnectSockets(true);
 }
 
 module.exports = { attachWebSocket, broadcastRoom, broadcastRoomList, subscribeRoomList, forceCloseRoom };

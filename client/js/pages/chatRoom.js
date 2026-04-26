@@ -117,49 +117,59 @@ export async function chatRoomPage(root, { id: roomId }) {
     renderParticipants(participants);
   } catch { /* ignore */ }
 
-  // WebSocket 연결
-  const at = getAccessToken();
-  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-  const wsUrl = `${proto}://${location.host}/ws/chat/${roomId}?token=${encodeURIComponent(at)}`;
-  let ws;
+  // socket.io 연결
+  let socket;
 
-  function connectWS() {
-    ws = new WebSocket(wsUrl);
+  function connectSocket() {
+    const at = getAccessToken();
+    socket = io({
+      path: '/socket.io',
+      transports: ['websocket'],
+      auth: { token: at },
+    });
 
-    ws.onmessage = (e) => {
-      let msg;
-      try { msg = JSON.parse(e.data); } catch { return; }
+    socket.on('connect', () => {
+      socket.emit('room:join', { roomId }, (res) => {
+        if (!res?.ok) showToast('채팅방 연결에 실패했습니다', 'error');
+      });
+    });
 
-      if (msg.type === 'message:new') {
-        const atBottom = msgArea.scrollHeight - msgArea.scrollTop - msgArea.clientHeight < 50;
-        msgArea.insertAdjacentHTML('beforeend', msgHtml(msg.data, user.id));
-        if (atBottom) msgArea.scrollTop = msgArea.scrollHeight;
-      } else if (msg.type === 'presence:join') {
-        msgArea.insertAdjacentHTML('beforeend', systemMsgHtml(`${msg.data.nickname}님이 입장하셨습니다`));
-        msgArea.scrollTop = msgArea.scrollHeight;
-      } else if (msg.type === 'presence:leave') {
-        msgArea.insertAdjacentHTML('beforeend', systemMsgHtml(`${msg.data.nickname}님이 퇴장하셨습니다`));
-        msgArea.scrollTop = msgArea.scrollHeight;
-      } else if (msg.type === 'presence:update') {
-        const countEl = root.querySelector('#participant-count');
-        if (countEl) countEl.textContent = `${msg.data.count} / ${room.capacity}`;
-        if (msg.data.participants) renderParticipants(msg.data.participants);
-      } else if (msg.type === 'room:closed') {
-        showToast('채팅방이 종료되었습니다', 'info');
-        navigate('/chat');
-      }
-    };
+    socket.on('message:new', (data) => {
+      const atBottom = msgArea.scrollHeight - msgArea.scrollTop - msgArea.clientHeight < 50;
+      msgArea.insertAdjacentHTML('beforeend', msgHtml(data, user.id));
+      if (atBottom) msgArea.scrollTop = msgArea.scrollHeight;
+    });
 
-    ws.onerror = () => {};
-    ws.onclose = () => {};
+    socket.on('presence:join', (data) => {
+      msgArea.insertAdjacentHTML('beforeend', systemMsgHtml(`${data.nickname}님이 입장하셨습니다`));
+      msgArea.scrollTop = msgArea.scrollHeight;
+    });
+
+    socket.on('presence:leave', (data) => {
+      msgArea.insertAdjacentHTML('beforeend', systemMsgHtml(`${data.nickname}님이 퇴장하셨습니다`));
+      msgArea.scrollTop = msgArea.scrollHeight;
+    });
+
+    socket.on('presence:update', (data) => {
+      const countEl = root.querySelector('#participant-count');
+      if (countEl) countEl.textContent = `${data.count} / ${room.capacity}`;
+      if (data.participants) renderParticipants(data.participants);
+    });
+
+    socket.on('room:closed', () => {
+      showToast('채팅방이 종료되었습니다', 'info');
+      navigate('/chat');
+    });
+
+    socket.on('connect_error', () => {});
   }
 
-  connectWS();
+  connectSocket();
 
   function sendMessage() {
     const content = chatInput.value.trim();
-    if (!content || !ws || ws.readyState !== WebSocket.OPEN) return;
-    ws.send(JSON.stringify({ type: 'message:send', content }));
+    if (!content || !socket?.connected) return;
+    socket.emit('message:send', { roomId, content });
     chatInput.value = '';
   }
 
@@ -170,13 +180,13 @@ export async function chatRoomPage(root, { id: roomId }) {
 
   root.querySelector('#btn-back').addEventListener('click', async () => {
     try { await leaveRoom(roomId); } catch { /* 이미 퇴장 */ }
-    ws?.close();
+    socket?.disconnect();
     navigate('/chat');
   });
 
   root.querySelector('#btn-leave').addEventListener('click', async () => {
     try { await leaveRoom(roomId); } catch (err) { showToast(err.message, 'error'); return; }
-    ws?.close();
+    socket?.disconnect();
     navigate('/chat');
   });
 
@@ -184,17 +194,17 @@ export async function chatRoomPage(root, { id: roomId }) {
     if (!confirm('채팅방을 종료하시겠습니까? 모든 참가자가 퇴장됩니다.')) return;
     try {
       await import('../api/chat.js').then(({ closeRoom }) => closeRoom(roomId));
-      ws?.close();
+      socket?.disconnect();
       navigate('/chat');
     } catch (err) {
       showToast(err.message, 'error');
     }
   });
 
-  // 페이지 떠날 때 WS 정리 + 레이아웃 클래스 제거
+  // 페이지 떠날 때 소켓 정리 + 레이아웃 클래스 제거
   const observer = new MutationObserver(() => {
     if (!document.contains(root)) {
-      ws?.close();
+      socket?.disconnect();
       pageRoot?.classList.remove('chat-room-page');
       observer.disconnect();
     }
