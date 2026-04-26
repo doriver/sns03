@@ -11,6 +11,8 @@ import { postEditorPage } from './pages/postEditor.js';
 import { profilePage } from './pages/profile.js';
 import { settingsPage } from './pages/settings.js';
 import { adminPage } from './pages/admin.js';
+import { chatRoomListPage } from './pages/chatRoomList.js';
+import { chatRoomPage } from './pages/chatRoom.js';
 
 async function restoreSession() {
   const at = sessionStorage.getItem('at');
@@ -43,6 +45,8 @@ route('/users/:id', profilePage);
 route('/settings', settingsPage, { auth: true });
 route('/admin', adminPage, { auth: true, admin: true });
 route('/admin/:tab', adminPage, { auth: true, admin: true });
+route('/chat', chatRoomListPage, { auth: true });
+route('/chat/:id', chatRoomPage, { auth: true });
 
 (async () => {
   await restoreSession();

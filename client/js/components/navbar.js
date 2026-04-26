@@ -20,6 +20,7 @@ export function renderNavbar() {
         <a class="nav-logo" href="/" data-link>SNS03</a>
         <div class="nav-links">
           <a href="/posts" data-link>게시판</a>
+          <a href="/chat" data-link>단체 채팅</a>
           ${user ? `
             <a href="/users/${user.id}" data-link>내 프로필</a>
             <a href="/posts/new" data-link>글쓰기</a>
