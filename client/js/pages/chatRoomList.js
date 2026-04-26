@@ -132,7 +132,7 @@ export async function chatRoomListPage(root) {
   function connectSSE() {
     const at = getAccessToken();
     if (!at) return;
-    sseSource = new EventSource(`/api/chat/rooms/stream`, { withCredentials: true });
+    sseSource = new EventSource(`/api/chat/rooms/stream?token=${encodeURIComponent(at)}`, { withCredentials: true });
 
     sseSource.addEventListener('room:created', () => loadPage(currentPage));
     sseSource.addEventListener('room:closed', () => loadPage(currentPage));

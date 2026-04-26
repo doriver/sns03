@@ -49,4 +49,28 @@ function requireRole(...roles) {
   };
 }
 
-module.exports = { requireAuth, optionalAuth, requireRole };
+// EventSource는 헤더를 설정할 수 없으므로 SSE 엔드포인트에서 ?token= 쿼리 파라미터도 허용
+async function requireAuthSSE(req, res, next) {
+  const header = req.headers.authorization || '';
+  const token = header.startsWith('Bearer ') ? header.slice(7) : (req.query.token || null);
+  if (!token) return next(new AppError('AUTH_NO_TOKEN', 401, 'Authentication required'));
+
+  let payload;
+  try { payload = verifyAccessToken(token); } catch (e) { return next(e); }
+
+  const user = await User.findById(payload.sub).lean();
+  if (!user || user.deletedAt || user.bannedAt) {
+    return next(new AppError('AUTH_USER_INVALID', 401, 'User not available'));
+  }
+
+  req.user = user;
+
+  const redis = getRedis();
+  const today = new Date().toISOString().slice(0, 10);
+  redis.sadd(`dau:${today}`, String(user._id)).catch(() => {});
+  redis.expire(`dau:${today}`, 2 * 24 * 3600).catch(() => {});
+
+  next();
+}
+
+module.exports = { requireAuth, optionalAuth, requireRole, requireAuthSSE };
