@@ -43,10 +43,14 @@ Mongoose 스키마는 모듈 내부가 아니라 `src/models/` 에 모아 두어
 
 `modules/chat/chat.realtime.js` 가 두 가지 푸시 채널을 관리한다:
 
-- **WebSocket** (`ws` 패키지): 채팅방별 메시지 브로드캐스트. `server.js` 에서 `attachWebSocket(httpServer)` 로 HTTP 서버에 직접 붙는다 — Express app 에는 붙지 않으므로 `app.js` 가 아니라 `server.js` 를 거쳐야 활성화된다. 따라서 supertest 기반 통합 테스트로는 WebSocket 경로를 검증할 수 없다.
-- **SSE**: 채팅방 목록 변경(입/퇴장 등)을 푸시한다. `Authorization` 헤더를 못 쓰는 EventSource 한계 때문에 SSE 경로의 인증은 일반 미들웨어와 다르게 처리되니, 인증 변경 시 같이 확인할 것.
+- **Socket.IO** (`socket.io` + `@socket.io/redis-adapter`): 채팅방별 메시지 브로드캐스트. `server.js` 에서 `attachWebSocket(httpServer)` 로 HTTP 서버에 직접 붙고, Redis pub/sub 어댑터로 다중 WAS 간 fan-out 한다 — Express app 에는 붙지 않으므로 `app.js` 가 아니라 `server.js` 를 거쳐야 활성화된다. 따라서 supertest 기반 통합 테스트로는 소켓 경로를 검증할 수 없다.
+- **SSE**: 채팅방 목록 변경(입/퇴장 등)을 푸시한다. WAS 간에는 Redis pub/sub 으로 이벤트를 fan-out 한다. `Authorization` 헤더를 못 쓰는 EventSource 한계 때문에 SSE 경로의 인증은 일반 미들웨어와 다르게 처리되니, 인증 변경 시 같이 확인할 것.
 
-소켓별 rate limit 은 `chat.realtime.js` 내부 인메모리 버킷으로 관리한다(REST 의 `globalLimiter` 와 별개).
+소켓별 rate limit 은 `chat.realtime.js` 내부 인메모리 버킷으로 관리한다(REST 의 `globalLimiter` 와 별개). 인메모리이므로 WAS 별로 카운트가 분리된다는 점에 유의.
+
+### 다중 WAS / nginx
+
+루트의 `docker-compose.yml` 은 `was1` + `was2` 두 인스턴스를 띄우고 `nginx` (포트 80) 가 앞단에서 로드밸런싱한다. nginx 설정은 `nginx/nginx.conf`. 업로드 디렉터리 (`server/uploads/`) 는 호스트 바인드마운트로 두 WAS 와 nginx (정적 `/uploads`) 가 공유한다. MongoDB/Redis 는 컨테이너에 포함되어 있지 않고 호스트의 `host.docker.internal:27017` / `:6379` 에 붙는다. 다중 인스턴스 환경에서는 실시간/세션류 상태가 Redis 를 거쳐야 하므로 chat 외 다른 도메인에 실시간 기능을 추가할 때도 같은 패턴(소켓 어댑터 또는 pub/sub)을 따른다.
 
 ### 미들웨어 스택 (순서 중요, `app.js` 에 정의)
 

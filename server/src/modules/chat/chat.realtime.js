@@ -46,7 +46,7 @@ function attachWebSocket(server) {
 
   const pub = getRedis().duplicate();
   const sub = getRedis().duplicate();
-  io.adapter(createAdapter(pub, sub));
+  io.adapter(createAdapter(pub, sub)); // Redis pub/sub으로 WAS 간 동기화
 
   io.use(async (socket, next) => {
     const token = socket.handshake.auth?.token;
@@ -74,7 +74,7 @@ function attachWebSocket(server) {
           leftAt: null,
         }).lean();
         if (!participation) return cb?.({ ok: false, error: 'NOT_JOINED' });
-        socket.join('room:' + roomId);
+        socket.join('room:' + roomId); // (socket.io의 room 개념) 명명한 room에 소켓 등록, 이때 어댑터가 내부적으로 Redis의 socket.io#{namespace}#{room이름} 채널을 subscribe 함
         cb?.({ ok: true });
       } catch (err) {
         logger.error('room:join error', { err: err.message });
@@ -106,8 +106,10 @@ function attachWebSocket(server) {
           content: text,
           createdAt: new Date().toISOString(),
         };
+        // Redis 리스트에 버퍼링
         await getRedis().rpush(`chat:buf:${roomId}`, JSON.stringify(entry));
-        io.to('room:' + roomId).emit('message:new', entry);
+        // 방에 있는 모든 클라이언트에게 브로드캐스트 
+        io.to('room:' + roomId).emit('message:new', entry); // redis-adapter로 redis pub/sub 됨
         cb?.({ ok: true });
       } catch (err) {
         logger.error('message:send error', { err: err.message });
