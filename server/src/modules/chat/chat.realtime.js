@@ -31,7 +31,7 @@ function initSsePubSub() {
     try { parsed = JSON.parse(raw); } catch { return; }
     const { type, data } = parsed;
     const msg = `event: ${type}\ndata: ${JSON.stringify(data)}\n\n`;
-    for (const res of sseListeners) {
+    for (const res of sseListeners) { // 이 WAS에 연결된 모든 SSE 클라이언트에게 전송
       try { res.write(msg); } catch { sseListeners.delete(res); }
     }
   });
@@ -120,7 +120,6 @@ function attachWebSocket(server) {
     socket.on('error', (err) => logger.error('socket error', { err: err.message }));
   });
 
-  initSsePubSub();
 }
 
 function broadcastRoom(roomId, eventType, data) {
@@ -133,19 +132,20 @@ function broadcastRoomList(eventType, data) {
 }
 
 function subscribeRoomList(req, res) {
-  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Content-Type', 'text/event-stream'); // SSE 필수 헤더
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
-  res.setHeader('X-Accel-Buffering', 'no');
+  res.setHeader('X-Accel-Buffering', 'no'); // nginx 버퍼링 비활성화
   res.flushHeaders();
 
   res.write(': connected\n\n');
 
+  // 25초마다 ping: 연결 끊김 감지용
   const heartbeat = setInterval(() => {
     try { res.write(': ping\n\n'); } catch { clearInterval(heartbeat); }
   }, 25000);
 
-  sseListeners.add(res);
+  sseListeners.add(res); // 이 WAS에 연결된 클라이언트 Set에 등록
 
   req.on('close', () => {
     clearInterval(heartbeat);
@@ -159,4 +159,4 @@ function forceCloseRoom(roomId) {
   io.in('room:' + roomId).disconnectSockets(true);
 }
 
-module.exports = { attachWebSocket, broadcastRoom, broadcastRoomList, subscribeRoomList, forceCloseRoom };
+module.exports = { attachWebSocket, initSsePubSub, broadcastRoom, broadcastRoomList, subscribeRoomList, forceCloseRoom };
