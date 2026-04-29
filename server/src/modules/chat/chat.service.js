@@ -9,7 +9,7 @@ const { broadcastRoomList, broadcastRoom, forceCloseRoom } = require('./chat.rea
 async function flushBufferToMongo(roomId) {
   const redis = getRedis();
   const key = `chat:buf:${roomId}`;
-  const items = await redis.lrange(key, 0, -1);
+  const items = await redis.lrange(key, 0, -1); // 전체 꺼내기
   if (items.length) {
     const docs = items.map((raw) => {
       const d = JSON.parse(raw);
@@ -20,9 +20,9 @@ async function flushBufferToMongo(roomId) {
         createdAt: new Date(d.createdAt),
       };
     });
-    await ChatMessage.insertMany(docs, { ordered: false });
+    await ChatMessage.insertMany(docs, { ordered: false }); // MongoDB 저장
   }
-  await redis.del(key);
+  await redis.del(key); // Redis 버퍼 삭제
   return items.length;
 }
 
