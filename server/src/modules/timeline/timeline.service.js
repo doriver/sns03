@@ -16,25 +16,25 @@ async function getTimeline() {
     { $addFields: { score: { $add: [{ $multiply: ['$viewCount', 0.7] }, { $multiply: ['$likeCount', 0.3] }] } } },
     { $sort: { score: -1 } },
     { $limit: 10 },
-    {
+    { // 작성자 정보 조인
       $lookup: {
-        from: 'users',
+        from: 'users', // posts.authorId → users._id 로 조인
         localField: 'authorId',
         foreignField: '_id',
-        pipeline: [{ $project: { nickname: 1, profileImage: 1, role: 1 } }],
-        as: 'authorArr',
+        pipeline: [{ $project: { nickname: 1, profileImage: 1, role: 1 } }], // 필요한 필드(nickname, profileImage, role)만 가져옴
+        as: 'authorArr', // 결과를 배열 authorArr로 저장
       },
     },
-    {
+    { // 최근 댓글 조인
       $lookup: {
         from: 'comments',
-        let: { postId: '$_id' },
-        pipeline: [
+        let: { postId: '$_id' }, // let + $expr을 사용한 서브파이프라인 방식 조인 (조건부 조인 가능) , 단순 $lookup과 달리 댓글 필터링/정렬/제한을 서브파이프라인 안에서 처리
+        pipeline: [ 
           { $match: { $expr: { $and: [{ $eq: ['$postId', '$$postId'] }, { $eq: ['$deletedAt', null] }] } } },
           { $sort: { createdAt: -1 } },
           { $limit: 3 },
           {
-            $lookup: {
+            $lookup: { // 댓글 작성자도 조인
               from: 'users',
               localField: 'authorId',
               foreignField: '_id',
@@ -43,9 +43,9 @@ async function getTimeline() {
             },
           },
           {
-            $project: {
+            $project: { // 최종 출력 필드 정의
               _id: 0,
-              id: '$_id',
+              id: '$_id', // _id → id 로 리네임
               content: 1,
               createdAt: 1,
               author: { $arrayElemAt: ['$authorArr', 0] },
@@ -56,18 +56,18 @@ async function getTimeline() {
       },
     },
     {
-      $project: {
+      $project: { // 최종 출력 필드 정의
         _id: 0,
         id: '$_id',
         title: 1,
-        content: { $substrCP: ['$content', 0, 200] },
+        content: { $substrCP: ['$content', 0, 200] }, // 본문 200자 미리보기
         images: 1,
         viewCount: 1,
         likeCount: 1,
         commentCount: 1,
         score: 1,
         createdAt: 1,
-        author: { $arrayElemAt: ['$authorArr', 0] },
+        author: { $arrayElemAt: ['$authorArr', 0] }, // 조인 결과 배열의 첫 번째 원소만 꺼냄
         recentComments: 1,
       },
     },

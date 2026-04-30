@@ -49,15 +49,17 @@ async function getById(postId, viewerIdOrIp) {
     .lean();
   if (!post) throw new AppError('POST_NOT_FOUND', 404, 'Post not found');
 
+  // await 없음 , 응답을 블로킹하지 않고 백그라운드에서 처리
   incrementView(postId, viewerIdOrIp).catch((e) => logger.warn('viewCount error', { err: e.message }));
 
   return formatPost(post);
 }
 
+// Redis로 조회수 중복 방지 , 같은 사용자가 30분 내에 재조회하면 카운트x
 async function incrementView(postId, key) {
   const redis = getRedis();
   const rKey = `view:${postId}:${key}`;
-  const isNew = await redis.set(rKey, 1, 'EX', 600, 'NX');
+  const isNew = await redis.set(rKey, 1, 'EX', 1800, 'NX'); // EX 600 : 30분 후 키 자동 삭제   ,   NX : 키가 없을 때만 set (있으면 실패)
   if (isNew) {
     await Post.updateOne({ _id: postId }, { $inc: { viewCount: 1 } });
   }

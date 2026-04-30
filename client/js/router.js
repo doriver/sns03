@@ -15,8 +15,10 @@ export function navigate(path) {
 async function render(path) {
   const root = document.getElementById('page-root');
 
+  // 이전 페이지 정리(소켓 연결 해제 등)
   if (currentCleanup) { currentCleanup(); currentCleanup = null; }
 
+  // 현제 path에 맞는 라우트 찾기
   const match = matchRoute(path);
   if (!match) { root.innerHTML = '<p>페이지를 찾을 수 없습니다.</p>'; return; }
 
@@ -28,8 +30,9 @@ async function render(path) {
     if (r.admin && user.role !== 'admin') { navigate('/'); return; }
   }
 
+  // 페이지 렌더링
   root.innerHTML = '';
-  currentCleanup = await r.component(root, params) || null;
+  currentCleanup = await r.component(root, params) || null; // 페이지 함수 실행( root DOM에 직접 HTML씀 )
 }
 
 function matchRoute(path) {
