@@ -1,4 +1,4 @@
-const state = { currentUser: null };
+const state = { currentUser: null }; // 공유 인메모리 객체, 모듈 스코프 변수라 앱 전체에서 하나만 존재
 const listeners = {};
 
 export function getState(key) { return state[key]; }

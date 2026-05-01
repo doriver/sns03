@@ -5,14 +5,18 @@
 
 해당 README는 작성중(미완성)입니다.
 
-### 인증
+### JWT 인증
 <details>
-  <summary>작성 예정</summary>
+  <summary>Access, Refresh 토큰</summary>
   <div>
     <ul>
-      <li> 1
+      <li> Access는 브라우저의 Session Storage에 저장된다. 요청시 Authorization헤더에 담겨 서버에 전달된다.
       </li>
-      <li> 2
+      <li> Refresh는 브라우저의 쿠키와 서버쪽 Redis에 저장된다. Access만료됐다는 서버의 응답을 받을때 재발급 요청에서 서버에 전달된다.    
+      </li>
+      <img src="demo/code/refresh_cookie.png" style="width: 300px"/>
+      <li> access를 요청에 담는 것과, 재발급 요청은 <br>
+           프론트 요청api의 공통 메서드에서 이루어진다.
       </li>
     </ul>
   </div>
@@ -34,4 +38,39 @@
 </details>
 
 
-### 프론트는 순수JS로 SPA 
+### 프론트
+<details>
+  <summary>순수JS로 SPA</summary>
+  <div>
+    <ul>
+      <li> render함수 - page함수로 브라우저 DOM에 직접 HTML을 씀
+      </li>
+      <img src="demo/code/front_render.png" style="width: 500px"/>
+      <li> page함수 - DOM노드에 넣을 HTML및 js이벤트 정의
+      </li>
+      <li> main.js에서 경로와 페이지함수를 route로 등록해놈
+      </li>
+      <img src="demo/code/front_route.png" style="width: 400px"/>
+      <li> 공유 인메모리 객체 state를 사용해 get/set
+      </li>
+    </ul>
+  </div>
+</details>
+<details>
+  <summary>요청api </summary>
+  <div>
+    <ul>
+      <li> 요청api 메서드를 <br>
+          core 메서드 -> http 레이어 -> domain 레이어 , 로 래핑해서 계층적으로 구성
+      </li>
+      <li> core 메서드 <br>
+          - 인증(jwt토큰)관련 처리 , body데이터 타입 , 서버 에러응답 파싱
+      </li>
+      <img src="demo/code/front_request01.png" style="width: 500px"/>
+      <br>
+      <img src="demo/code/front_request02.png" style="width: 500px"/>
+    </ul>
+  </div>
+</details>
+
+ 

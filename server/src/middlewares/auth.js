@@ -16,6 +16,7 @@ async function requireAuth(req, res, next) {
 
   req.user = user;
 
+  // DAU(일간 활성 사용자) 기록
   const redis = getRedis();
   const today = new Date().toISOString().slice(0, 10);
   redis.sadd(`dau:${today}`, String(user._id)).catch(() => {});
