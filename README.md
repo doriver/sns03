@@ -73,4 +73,35 @@
   </div>
 </details>
 
- 
+### 주요 View
+
+<details>
+  <summary>01</summary>
+  <div>
+    <ul>
+      <li> 로그인 , 유저 프로필 , 관리자 페이지
+      </li>
+      <img src="demo/view/01.png" />
+    </ul>
+  </div>
+</details>
+<details>
+  <summary>02</summary>
+  <div>
+    <ul>
+      <li> 게시글 목록 , 게시글 상세 , 홈
+      </li>
+      <img src="demo/view/post.png" />
+    </ul>
+  </div>
+</details>
+<details>
+  <summary>03</summary>
+  <div>
+    <ul>
+      <li> 채팅방 목록 , 단체 채팅방
+      </li>
+      <img src="demo/view/03.png" />
+    </ul>
+  </div>
+</details>
